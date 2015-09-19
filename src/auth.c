@@ -101,7 +101,7 @@ int	authenticate(t_threadinfo *me)
     return (1);
   inv_cipher((byte *)me->buffer, (byte *)pass, me->exp_key);
   printf("Trying to authenticate %s/%s\n", login, pass);
-  if (!match_login_pass(login, pass))
+  if (match_login_pass(login, pass))
     {
       dprintf(me->socket, "Invalid user or password\n");
       me->finished = 1;

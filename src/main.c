@@ -79,7 +79,7 @@ int	main(int argc, char **argv)
       fprintf(stderr, "%s\n", database_geterror());
       return (1);
     }
-  if (setup_network(&mouli, argv[1]))
+  if (setup_network(&mouli, argv[1]) || mouli_run(&mouli))
     {
       if (database_close())
 	fprintf(stderr, "Warning: failed to close database properly\n");

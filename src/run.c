@@ -108,12 +108,15 @@ static int on_new_client(t_mouli *mouli)
 int	mouli_run(t_mouli *mouli)
 {
   static char *useless[128];
+  struct timeval t;
   fd_set rfds;
 
   FD_ZERO(&rfds);
   FD_SET(mouli->socket, &rfds);
   FD_SET(0, &rfds);
-  while (select(mouli->socket + 1, &rfds, NULL, NULL, NULL) > 0)
+  t.tv_sec = 0;
+  t.tv_usec = 100000;
+  while (select(mouli->socket + 1, &rfds, NULL, NULL, &t) >= 0)
     {
       if (FD_ISSET(0, &rfds) && !read(0, useless, 128))
 	return (0);
@@ -122,6 +125,8 @@ int	mouli_run(t_mouli *mouli)
       FD_SET(0, &rfds);
       FD_SET(mouli->socket, &rfds);
       check_threads(mouli);
+      t.tv_sec = 0;
+      t.tv_usec = 100000;
     }
   perror("select");
   return (1);

@@ -24,6 +24,11 @@ struct s_threadinfo
   pthread_t id;
   int	finished;
   int	socket;
+  char	*buffer; // Input buffer, what is read from socket
+  size_t buflen; // Bytes of data in buffer
+  char	tmp[128]; // Temporary buffer, used by some thread functions
+  byte	exp_key[256]; // Expanded AES key (240 bytes)
+  byte	key[32];
 };
 
 // Main moulinette structure
@@ -36,15 +41,6 @@ struct	s_mouli
   int	socket;
 };
 
-// A client connected to the moulinette
-typedef struct s_client t_client;
-struct	s_client
-{
-  int	socket;
-  byte	exp_key[256]; // Expanded AES key (240 bytes)
-  byte	key[32];
-};
-
 // AES utilities
 void	key_expansion(uint8_t *key, uint8_t *w);
 void	cipher(uint8_t *in, uint8_t *out, uint8_t *w);
@@ -52,5 +48,9 @@ void	inv_cipher(uint8_t *in, uint8_t *out, uint8_t *w);
 
 int	mouli_run(t_mouli *mouli);
 void	*handle_client(void *arg);
+int	authenticate(t_threadinfo *me);
+
+// Helper functions
+int	perform_read(t_threadinfo *me);
 
 #endif /* !MOULI_H_ */

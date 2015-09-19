@@ -14,5 +14,6 @@
 int	database_init(const char *filename);
 const char *database_geterror();
 int	database_close();
+char	*database_getkey(const char *login);
 
 #endif /* !DATABASE_H_ */

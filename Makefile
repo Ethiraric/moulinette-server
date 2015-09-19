@@ -4,8 +4,8 @@
 ## Made by Florian SABOURIN
 ## Login   <sabour_f@epitech.net>
 ##
-## Started on  Sat Sep 19 20:32:56 2015 Florian SABOURIN
-## Last update Sat Sep 19 20:32:56 2015 Florian SABOURIN
+## Started on  Sat Sep 19 21:28:16 2015 Florian SABOURIN
+## Last update Sat Sep 19 21:28:16 2015 Florian SABOURIN
 ##
 
 # Executables
@@ -27,6 +27,7 @@ LDFLAGS		=	-lsqlite3 -lpthread
 CSRC		=	src/handle_client.c
 CSRC		+=	src/database.c
 CSRC		+=	src/run.c
+CSRC		+=	src/auth.c
 CSRC		+=	src/main.c
 CSRC		+=	src/aes.c
 
@@ -58,6 +59,9 @@ src/database.o: src/database.c
 
 src/run.o: src/run.c include/mouli.h
 	$(CC) $(CFLAGS) -c -o src/run.o src/run.c
+
+src/auth.o: src/auth.c include/mouli.h include/database.h
+	$(CC) $(CFLAGS) -c -o src/auth.o src/auth.c
 
 src/main.o: src/main.c include/database.h include/mouli.h
 	$(CC) $(CFLAGS) -c -o src/main.o src/main.c

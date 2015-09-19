@@ -27,6 +27,8 @@ static void check_threads(t_mouli *mouli)
 	{
 	  // If it fails, the thread has terminated (ESRCH)
 	  pthread_join(mouli->threads[i]->id, &ret);
+	  if (mouli->threads[i]->socket)
+	    close(mouli->threads[i]->socket);
 	  free(mouli->threads[i]);
 	  --mouli->nthreads;
 	  memmove(&mouli->threads[i], &mouli->threads[i + 1],
@@ -66,6 +68,8 @@ static t_threadinfo *get_new_threadinfo(int socket)
   info->id = 0;
   info->finished = 0;
   info->socket = socket;
+  info->buffer = NULL;
+  info->buflen = 0;
   return (info);
 }
 

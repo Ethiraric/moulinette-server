@@ -14,9 +14,13 @@
 // Thread function handling a client
 void	*handle_client(void *arg)
 {
-  t_threadinfo *info;
+  t_threadinfo *me; // It's informations about me, myself
+  char	buffer[512];
 
-  info = (t_threadinfo *)(arg);
-  (void)(info);
+  me = (t_threadinfo *)(arg);
+  me->buffer = buffer;
+  if (authenticate(me))
+    return (NULL);
+  me->finished = 1;
   return (NULL);
 }

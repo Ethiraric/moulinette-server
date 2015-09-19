@@ -38,3 +38,16 @@ const char *database_geterror()
 {
   return (sqlite3_errmsg(dbhandler));
 }
+
+// Returns the AES key for the given login
+// Dummy function for now, since the database is not created
+char	*database_getkey(const char *login)
+{
+  static char key[32];
+  int i;
+
+  (void)(login); // Prevent warnings from compiler
+  for (i = 0 ; i < 32 ; ++i)
+    key[i] = i;
+  return (key);
+}

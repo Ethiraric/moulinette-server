@@ -1,0 +1,12 @@
+*.creator
+*.creator.*
+*.files
+*.includes
+*.config
+*.autosave
+*.o
+*a.out
+*.a
+*~
+*.tasks
+*.gcda

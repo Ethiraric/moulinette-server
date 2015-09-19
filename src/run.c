@@ -12,7 +12,29 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <string.h>
 #include "mouli.h"
+
+// Check for finished jobs
+static void check_threads(t_mouli *mouli)
+{
+  unsigned int i;
+  void	*ret;
+
+  for (i = 0 ; i < mouli->nthreads ; ++i)
+    {
+      if (mouli->threads[i]->finished)
+	{
+	  // If it fails, the thread has terminated (ESRCH)
+	  pthread_join(mouli->threads[i]->id, &ret);
+	  free(mouli->threads[i]);
+	  --mouli->nthreads;
+	  memmove(&mouli->threads[i], &mouli->threads[i + 1],
+	      sizeof(t_threadinfo) * (mouli->nthreads - i));
+	  --i;
+	}
+    }
+}
 
 // Make sure we can hold at least newsize threads
 static int realloc_threadinfos(t_mouli *mouli, size_t newsize)
@@ -70,6 +92,11 @@ static int on_new_client(t_mouli *mouli)
     }
   mouli->threads[mouli->nthreads] = info;
   ++mouli->nthreads;
+  if (pthread_create(&info->id, NULL, &handle_client, info))
+    {
+      perror("pthread_create");
+      return (1);
+    }
   return (0);
 }
 
@@ -90,6 +117,7 @@ int	mouli_run(t_mouli *mouli)
 	return (1);
       FD_SET(0, &rfds);
       FD_SET(mouli->socket, &rfds);
+      check_threads(mouli);
     }
   perror("select");
   return (1);

@@ -50,6 +50,7 @@ void	key_expansion(uint8_t *key, uint8_t *w);
 void	cipher(uint8_t *in, uint8_t *out, uint8_t *w);
 void	inv_cipher(uint8_t *in, uint8_t *out, uint8_t *w);
 
+int	mouli_run(t_mouli *mouli);
 void	*handle_client(void *arg);
 
 #endif /* !MOULI_H_ */

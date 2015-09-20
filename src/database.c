@@ -41,6 +41,7 @@ const char *database_geterror()
 
 // Returns the AES key for the given login
 // Dummy function for now, since the database is not created
+#warning TODO: retrieve from database
 char	*database_getkey(const char *login)
 {
   static char key[32];

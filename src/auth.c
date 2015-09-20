@@ -21,11 +21,10 @@ int	perform_read(t_threadinfo *me)
 {
   int ret;
 
-  ret = read(me->socket, &me->buffer[me->buflen], 512 - me->buflen);
+  ret = read(me->socket, &me->buffer[me->buflen], THREAD_BUFLEN - me->buflen);
   if (ret <= 0)
     {
       dprintf(me->socket, "read: %s\n", strerror(errno));
-      me->finished = 1;
       return (1);
     }
   me->buflen += ret;
@@ -43,10 +42,10 @@ static int read_login(t_threadinfo *me)
     if (perform_read(me))
       return (1);
   size = (char *)(pos) - me->buffer;
-  if (size > 8)
+  if (!pos || size > 8 ||
+      strspn(me->buffer, "0123456789abcdefghijklmnopqrstuvwxyz_-") != size)
     {
       dprintf(me->socket, "Invalid login\n");
-      me->finished = 1;
       return (1);
     }
   memcpy(me->tmp, me->buffer, size);
@@ -70,6 +69,7 @@ static int read_ciphered_pass(t_threadinfo *me)
 }
 
 // Ensure that the login/password combination is correct
+#warning TODO: match login / pass
 static int match_login_pass(char *login, char *pass)
 {
   // Hehe, what should I do here
@@ -82,17 +82,16 @@ static int match_login_pass(char *login, char *pass)
 int	authenticate(t_threadinfo *me)
 {
   char	pass[16];
-  char	login[16];
   char	*key;
+  int	passlen;
 
   if (read_login(me))
     return (1);
-  strcpy(login, me->tmp);
+  strcpy(me->login, me->tmp);
   key = database_getkey(me->tmp);
   if (!key)
     {
       dprintf(me->socket, "You are not known from me.\n");
-      me->finished = 1;
       return (1);
     }
   memcpy(me->key, key, 32);
@@ -100,11 +99,13 @@ int	authenticate(t_threadinfo *me)
   if (read_ciphered_pass(me))
     return (1);
   inv_cipher((byte *)me->buffer, (byte *)pass, me->exp_key);
-  printf("Trying to authenticate %s/%s\n", login, pass);
-  if (match_login_pass(login, pass))
+  passlen = pass[0];
+  memmove(pass, &pass[1], passlen);
+  pass[passlen] = '\0';
+  printf("Trying to authenticate %s/%s\n", me->login, pass);
+  if (match_login_pass(me->login, pass))
     {
       dprintf(me->socket, "Invalid user or password\n");
-      me->finished = 1;
       return (1);
     }
   return (0);

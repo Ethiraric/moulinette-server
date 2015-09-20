@@ -14,6 +14,13 @@
 # include <pthread.h>
 # include <stdint.h>
 
+# define THREAD_BUFLEN	512
+
+// TODO: configuration file + must not contain spaces or "
+# define CLONE_LOGIN "sabour_f" // Login to use when cloning
+# define CLONE_SUBFOLDER "repositories" // Where to clone: subfolder/login/repo
+# define TESTS_SUBFOLDER "tests" // Where the tests sources are: subfolder/repo
+
 // Defined for convenience
 typedef unsigned char byte;
 
@@ -29,6 +36,7 @@ struct s_threadinfo
   char	tmp[128]; // Temporary buffer, used by some thread functions
   byte	exp_key[256]; // Expanded AES key (240 bytes)
   byte	key[32];
+  char	login[16]; // User's login
 };
 
 // Main moulinette structure

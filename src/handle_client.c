@@ -61,8 +61,6 @@ static int read_repo(t_threadinfo *me)
       strspn(me->buffer, "0123456789abcdefghijklmnopqrstuvwxyz"
 	     "ABCDEFGHIJKLMNOPQRSTUVWXYZ_-") != size)
     {
-      printf("%zu / %zu\n", size, strspn(me->buffer, "0123456789abcdefghijklmnopqrstuvwxyz"
-						     "ABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
       dprintf(me->socket, "Invalid repo\n");
       me->finished = 1;
       return (1);

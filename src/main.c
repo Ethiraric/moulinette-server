@@ -30,6 +30,7 @@ static int setup_network(t_mouli *mouli, char *portstr)
 {
   struct sockaddr_in sin;
   unsigned short port;
+  int	t = 1;
 
   port = atoi(portstr);
   if (!port)
@@ -41,6 +42,12 @@ static int setup_network(t_mouli *mouli, char *portstr)
   if (mouli->socket == -1)
     {
       perror("socket");
+      return (1);
+    }
+  if (setsockopt(mouli->socket, SOL_SOCKET, SO_REUSEADDR, &t, sizeof(t)) == -1)
+    {
+      close(mouli->socket);
+      perror("setsockopt");
       return (1);
     }
   sin.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -61,6 +68,8 @@ static int setup_network(t_mouli *mouli, char *portstr)
     }
   return (0);
 }
+
+//zvoid	mouli_end()
 
 // Entry point
 // Use the program as: ./mouli <port> <sqlitefile>

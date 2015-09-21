@@ -64,11 +64,16 @@ else
 fi
 
 # Copy tests
-if [[ ! -d .tests ]]
+if [[ -d .tests ]]
 then
-    mkdir -p .tests
-    cp ../../../$testsdir/$repo/* ./.tests -r
+    rm -rf .tests
 fi
+
+mkdir -p .tests
+cp ../../../$testsdir/$repo/* ./.tests -r
+
+
+echo "Clone OK"
 
 # Exit successfully
 exit 0

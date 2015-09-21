@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "mouli.h"
 
 // Call system, with a printf-formated string
@@ -62,7 +63,6 @@ static int read_repo(t_threadinfo *me)
 	     "ABCDEFGHIJKLMNOPQRSTUVWXYZ_-") != size)
     {
       dprintf(me->socket, "Invalid repo\n");
-      me->finished = 1;
       return (1);
     }
   return (0);
@@ -82,18 +82,78 @@ static int update_repo(t_threadinfo *me)
 		 me->login, me->buffer, CLONE_SUBFOLDER, TESTS_SUBFOLDER,
 		 CLONE_LOGIN);
   pos = 0;
-  while (fread(&outbuffer[pos], THREAD_BUFLEN - pos - 1, 1, ifs))
-    ;
+  while ((status = fread(&outbuffer[pos], 1, THREAD_BUFLEN - pos - 1, ifs)))
+    pos += status;
   status = pclose(ifs);
-  if (status == -1)
+  if (status == -1 || !pos)
     {
-      perror("pclose");
+      if (status == -1)
+	perror("pclose");
+      dprintf(me->socket, "Failed to clone (severe)\n");
       return (1);
     }
   status = WEXITSTATUS(status);
   if (status)
     {
       dprintf(me->socket, "%s", outbuffer);
+      return (1);
+    }
+  return (0);
+}
+
+// Write loop. Ensures len bytes are written to fd
+static int write_loop(int fd, char *buffer, size_t len)
+{
+  int	ret;
+
+  while (len)
+    {
+      ret = write(fd, buffer, len);
+      if (ret <= 0)
+	{
+	  perror("write");
+	  return (1);
+	}
+      buffer += ret;
+      len -= ret;
+    }
+  return (len);
+}
+
+// Run the tests
+// The file must be executable, and print to stdout the results
+// If it runs another executable (e.g. gcc), it must display the error output
+// on its own standard output if it wants it to be sent to the student
+static int run_tests(t_threadinfo *me)
+{
+  FILE	*ifs;
+  int	status;
+  char	outbuffer[THREAD_BUFLEN];
+  int	hasread;
+
+  ifs = my_popen("(cd ./%s/%s/%s/.tests && ./%s)", CLONE_SUBFOLDER, me->login,
+		 me->buffer, TESTS_FILENMAME);
+  if (!ifs)
+    {
+      dprintf(me->socket, "Failed to exec tests (severe)\n");
+      return (1);
+    }
+  hasread = 0;
+  while ((status = fread(outbuffer, 1, 1, ifs)))
+    {
+      if (write_loop(me->socket, outbuffer, status))
+	{
+	  pclose(ifs);
+	  return (1);
+	}
+      hasread = 1;
+    }
+  status = pclose(ifs);
+  if (status == -1 || !hasread)
+    {
+      if (status == -1)
+	perror("pclose");
+      dprintf(me->socket, "Failed to exec tests (severe)\n");
       return (1);
     }
   return (0);
@@ -107,7 +167,8 @@ void	*handle_client(void *arg)
 
   me = (t_threadinfo *)(arg);
   me->buffer = buffer;
-  if (authenticate(me) || update_repo(me))
+  // Stop at the first function returning an error
+  if (authenticate(me) || update_repo(me) || run_tests(me))
     {
       me->finished = 1;
       return (NULL);

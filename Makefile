@@ -4,8 +4,8 @@
 ## Made by Florian SABOURIN
 ## Login   <sabour_f@epitech.net>
 ##
-## Started on  Sun Sep 20 13:01:43 2015 Florian SABOURIN
-## Last update Sun Sep 20 13:01:43 2015 Florian SABOURIN
+## Started on  Mon Sep 21 11:52:49 2015 Florian SABOURIN
+## Last update Mon Sep 21 11:52:49 2015 Florian SABOURIN
 ##
 
 # Executables
@@ -19,8 +19,8 @@ MAKE		+=	--no-print-directory
 NAME		=	mouliserver
 
 # Flags
-CFLAGS		=	-Wall -W -Wshadow -fno-diagnostics-show-caret -D_GNU_SOURCE -Iinclude 
-CXXFLAGS	=	-Wall -W -Wshadow -fno-diagnostics-show-caret -D_GNU_SOURCE -Iinclude 
+CFLAGS		=	-Wall -W -Wshadow -fno-diagnostics-show-caret -D_GNU_SOURCE -ggdb3 -Iinclude 
+CXXFLAGS	=	-Wall -W -Wshadow -fno-diagnostics-show-caret -D_GNU_SOURCE -ggdb3 -Iinclude 
 LDFLAGS		=	-lsqlite3 -lpthread 
 
 # Files

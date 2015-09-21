@@ -14,12 +14,14 @@
 # include <pthread.h>
 # include <stdint.h>
 
+// Default size for all buffers in a thread (at most 2 at a time may be in use)
 # define THREAD_BUFLEN	512
 
 // TODO: configuration file + must not contain spaces or "
 # define CLONE_LOGIN "sabour_f" // Login to use when cloning
 # define CLONE_SUBFOLDER "repositories" // Where to clone: subfolder/login/repo
 # define TESTS_SUBFOLDER "tests" // Where the tests sources are: subfolder/repo
+# define TESTS_FILENMAME "run_tests.py" // The file to execute to test
 
 // Defined for convenience
 typedef unsigned char byte;

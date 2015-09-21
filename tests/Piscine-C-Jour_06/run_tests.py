@@ -50,6 +50,7 @@ def get_test_output(mouliname):
 def get_user_output(username, marksofar):
     process = subprocess.Popen(username, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     time.sleep(1)
+    process.kill()
     out, err = process.communicate()
     rcode = process.wait()
     if rcode != 0:

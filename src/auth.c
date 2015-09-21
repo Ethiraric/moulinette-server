@@ -138,28 +138,28 @@ static int match_login_pass(char *login, char *pass)
 int	authenticate(t_threadinfo *me)
 {
   char	pass[16];
-  char	*key;
   int	passlen;
 
   if (read_login(me))
     return (1);
-  strcpy(me->login, me->tmp);
-  key = database_getkey(me->tmp);
-  if (!key)
+  strcpy(me->user.login, me->tmp);
+  if (database_getuser(me->user.login, &me->user))
     {
       dprintf(me->socket, "You are not known from me.\n");
       return (1);
     }
-  memcpy(me->key, key, 32);
-  key_expansion(me->key, me->exp_key);
+  printf("Login:%s, id:%d, key:", me->user.login, me->user.id);
+  for (passlen = 0 ; passlen < 32 ; ++passlen)
+    printf("%02hhx", me->user.key[passlen]);
+  printf("\n");
+  key_expansion(me->user.key, me->exp_key);
   if (read_ciphered_pass(me))
     return (1);
   inv_cipher((byte *)me->buffer, (byte *)pass, me->exp_key);
   passlen = pass[0];
   memmove(pass, &pass[1], passlen);
   pass[passlen] = '\0';
-  printf("Trying to authenticate %s/%s\n", me->login, pass);
-  if (match_login_pass(me->login, pass))
+  if (match_login_pass(me->user.login, pass))
     {
       dprintf(me->socket, "Failed to match user and password\n");
       return (1);

@@ -11,9 +11,20 @@
 #ifndef DATABASE_H_
 # define DATABASE_H_
 
+// Defined for convenience
+typedef unsigned char byte;
+
+typedef struct s_dbuser t_dbuser;
+struct s_dbuser
+{
+  unsigned int id;
+  char	login[8];
+  byte	key[32];
+};
+
 int	database_init(const char *filename);
 const char *database_geterror();
 int	database_close();
-char	*database_getkey(const char *login);
+int	database_getuser(const char *login, t_dbuser *dst);
 
 #endif /* !DATABASE_H_ */

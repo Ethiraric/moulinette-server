@@ -13,6 +13,7 @@
 
 # include <pthread.h>
 # include <stdint.h>
+# include "database.h"
 
 // Default size for all buffers in a thread (at most 2 at a time may be in use)
 # define THREAD_BUFLEN	512
@@ -23,9 +24,6 @@
 # define TESTS_SUBFOLDER "tests" // Where the tests sources are: subfolder/repo
 # define TESTS_FILENMAME "run_tests.py" // The file to execute to test
 
-// Defined for convenience
-typedef unsigned char byte;
-
 // Thread information
 typedef struct s_threadinfo t_threadinfo;
 struct s_threadinfo
@@ -33,12 +31,11 @@ struct s_threadinfo
   pthread_t id;
   int	finished;
   int	socket;
-  char	*buffer; // Input buffer, what is read from socket
-  size_t buflen; // Bytes of data in buffer
-  char	tmp[128]; // Temporary buffer, used by some thread functions
-  byte	exp_key[256]; // Expanded AES key (240 bytes)
-  byte	key[32];
-  char	login[16]; // User's login
+  char	*buffer;      // Input buffer, what is read from socket
+  size_t buflen;      // Bytes of data in buffer
+  char	tmp[128];     // Temporary buffer, used by some thread functions
+  byte	exp_key[240]; // Expanded AES key (240 bytes)
+  t_dbuser user;      // Contains all user's data
 };
 
 // Main moulinette structure

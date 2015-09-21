@@ -79,7 +79,7 @@ static int update_repo(t_threadinfo *me)
   if (read_repo(me))
     return (1);
   ifs = my_popen("./clone.sh \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" 2> /dev/null",
-		 me->login, me->buffer, CLONE_SUBFOLDER, TESTS_SUBFOLDER,
+		 me->user.login, me->buffer, CLONE_SUBFOLDER, TESTS_SUBFOLDER,
 		 CLONE_LOGIN);
   pos = 0;
   while ((status = fread(&outbuffer[pos], 1, THREAD_BUFLEN - pos - 1, ifs)))
@@ -95,6 +95,7 @@ static int update_repo(t_threadinfo *me)
   status = WEXITSTATUS(status);
   if (status)
     {
+      outbuffer[pos] = '\0';
       dprintf(me->socket, "%s", outbuffer);
       return (1);
     }
@@ -131,8 +132,8 @@ static int run_tests(t_threadinfo *me)
   char	outbuffer[THREAD_BUFLEN];
   int	hasread;
 
-  ifs = my_popen("(cd ./%s/%s/%s/.tests && ./%s)", CLONE_SUBFOLDER, me->login,
-		 me->buffer, TESTS_FILENMAME);
+  ifs = my_popen("(cd ./%s/%s/%s/.tests && ./%s)", CLONE_SUBFOLDER,
+		 me->user.login, me->buffer, TESTS_FILENMAME);
   if (!ifs)
     {
       dprintf(me->socket, "Failed to exec tests (severe)\n");

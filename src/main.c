@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <curl.h>
 #include "database.h"
 #include "mouli.h"
 
@@ -69,8 +70,6 @@ static int setup_network(t_mouli *mouli, char *portstr)
   return (0);
 }
 
-//zvoid	mouli_end()
-
 // Entry point
 // Use the program as: ./mouli <port> <sqlitefile>
 int	main(int argc, char **argv)
@@ -90,10 +89,12 @@ int	main(int argc, char **argv)
     }
   if (setup_network(&mouli, argv[1]) || mouli_run(&mouli))
     {
+      curl_global_cleanup();
       if (database_close())
 	fprintf(stderr, "Warning: failed to close database properly\n");
       return (1);
     }
+  curl_global_cleanup();
   if (database_close())
     fprintf(stderr, "Warning: failed to close database properly\n");
   return (0);

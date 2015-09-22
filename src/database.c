@@ -131,7 +131,76 @@ int	database_new_user(const char *login, const char *unam, const char *key)
   free(req);
   if (ret != SQLITE_OK)
     {
-      fprintf(stderr, "sqlite3_exec: %s\n", sqlite3_errmsg(dbhandler));
+      fprintf(stderr, "sqlite3_exec: %s\n", err);
+      return (1);
+    }
+  return (0);
+}
+
+// Returns the id for the specified repository (-1 on error)
+int	database_getrepoid(const char *repo)
+{
+  static char req[128]; // 75 chars max
+  sqlite3_stmt *stmt;
+  char	*err;
+  int	cols;
+  int	id;
+
+  sprintf(req, "SELECT `id` FROM `repositories` WHERE `repo`='%s';", repo);
+  if (sqlite3_prepare(dbhandler, req, -1, &stmt, NULL) != SQLITE_OK)
+    {
+      fprintf(stderr, "sqlite3_prepare: %s\n", sqlite3_errmsg(dbhandler));
+      return (1);
+    }
+
+  // Nothing found in db, create the id (if we are here, there is a testsuite)
+  if (sqlite3_step(stmt) != SQLITE_ROW)
+    {
+      sqlite3_finalize(stmt);
+      sprintf(req, "INSERT INTO `repositories` (`repo`) VALUES('%s');", repo);
+      cols = sqlite3_exec(dbhandler, req, &callback_nothing, NULL, &err);
+      if (cols != SQLITE_OK)
+	{
+	  fprintf(stderr, "sqlite3_exec: %s\n", err);
+	  return (-1);
+	}
+      return (sqlite3_last_insert_rowid(dbhandler));
+    }
+
+  // Get id
+  cols = sqlite3_column_count(stmt);
+  id = atoi((const char *)sqlite3_column_text(stmt, 0));
+  sqlite3_finalize(stmt);
+  return (id);
+}
+
+// Record informations when the user launches a test
+int	database_log(t_dbuser *user, const char *repo, int mark)
+{
+  char	*req;
+  char	*err;
+  int	repoid;
+  int	ret;
+
+  // Get repo id
+  repoid = database_getrepoid(repo);
+  if (repoid == -1)
+    return (1);
+
+  ret = asprintf(&req, "INSERT INTO `log` (`auth_id`, `repo_id`, `time`, "
+			"`mark`) VALUES (%d, %d, CURRENT_TIMESTAMP, %d);",
+		  user->id, repoid, mark);
+  if (ret == -1)
+    {
+      perror("asprintf");
+      return (1);
+    }
+
+  ret = sqlite3_exec(dbhandler, req, &callback_nothing, NULL, &err);
+  free(req);
+  if (ret != SQLITE_OK)
+    {
+      fprintf(stderr, "sqlite3_exec: %s\n", err);
       return (1);
     }
   return (0);

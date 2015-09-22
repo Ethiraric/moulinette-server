@@ -8,13 +8,13 @@ CREATE TABLE auth
 CREATE TABLE log
 (`id` INTEGER PRIMARY KEY,
  `auth_id` INTEGER,
+ `repo_id` INTEGER,
  `time` TIMESTAMP,
- `mark` INTEGER
- `user_output` TEXT);
+ `mark` INTEGER);
 
-CREATE TABLE subject
+CREATE TABLE repositories
 (`id` INTEGER PRIMARY KEY,
- `day` DATE);
+ `repo` VARCHAR(32));
 
 CREATE TABLE mark
 (`id` INTEGER PRIMRAY KEY,

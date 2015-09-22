@@ -15,6 +15,35 @@
 #include <unistd.h>
 #include "mouli.h"
 
+// A buffer for the moulinette output
+typedef struct s_buffer t_buffer;
+struct s_buffer
+{
+  size_t buflen;
+  size_t bufallocd;
+  char	*buffer;
+};
+
+// Append data to buffer, reallocate if necessary
+static int buffer_append(t_buffer *buffer, char *append, size_t appsiz)
+{
+  char	*tmp;
+
+  if (buffer->buflen + appsiz > buffer->bufallocd)
+    {
+      if (!(tmp = (char *)realloc(buffer->buffer, buffer->bufallocd + appsiz)))
+	{
+	  perror("realloc");
+	  return (1);
+	}
+      buffer->buffer = tmp;
+      buffer->bufallocd += appsiz;
+    }
+  memcpy(&buffer->buffer[buffer->buflen], append, appsiz);
+  buffer->buflen += appsiz;
+  return (0);
+}
+
 // Call popen, with a printf-formated string (with mode "r")
 // It pipe()s and fork()s so we can read the subprocess standard output
 #ifdef __GNUC__
@@ -146,9 +175,11 @@ static int write_loop(int fd, char *buffer, size_t len)
 // on its own standard output if it wants it to be sent to the student
 static int run_tests(t_threadinfo *me)
 {
+  t_buffer resbuffer;
   FILE	*ifs;
+  char	buff[THREAD_BUFLEN];
+  char	*markpos;
   int	status;
-  char	outbuffer[THREAD_BUFLEN];
   int	hasread;
 
   // Open pipe with executable
@@ -161,16 +192,36 @@ static int run_tests(t_threadinfo *me)
     }
 
   // Read output until the end, and send it to the student
+  resbuffer.bufallocd = 0;
+  resbuffer.buflen = 0;
+  resbuffer.buffer = NULL;
   hasread = 0;
-  while ((status = fread(outbuffer, 1, 1, ifs)))
+  while ((status = fread(buff, 1, THREAD_BUFLEN, ifs)))
     {
-      if (write_loop(me->socket, outbuffer, status))
+      if (buffer_append(&resbuffer, buff, status))
 	{
-	  pclose(ifs);
+	  free(resbuffer.buffer);
 	  return (1);
 	}
       hasread = 1;
     }
+
+  if (write_loop(me->socket, resbuffer.buffer, resbuffer.buflen))
+    {
+      free(resbuffer.buffer);
+      return (1);
+    }
+
+  markpos = memmem(resbuffer.buffer, resbuffer.buflen, "Mark:", 5);
+  if (markpos)
+    hasread = atoi(markpos + 5);
+  else
+    {
+      printf("Failed to find markpos\n");
+      markpos = 0;
+    }
+  free(resbuffer.buffer);
+  database_log(&me->user, me->buffer, hasread);
 
   // Close pipe
   status = pclose(ifs);

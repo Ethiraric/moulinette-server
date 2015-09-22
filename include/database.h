@@ -28,5 +28,6 @@ int	database_close();
 int	database_getuser(const char *login, t_dbuser *dst);
 int	database_new_user(const char *login, const char *unam,
 			  const char *key);
+int	database_log(t_dbuser *user, const char *repo, int mark);
 
 #endif /* !DATABASE_H_ */

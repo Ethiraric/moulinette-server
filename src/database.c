@@ -61,7 +61,7 @@ int	database_getuser(const char *login, t_dbuser *dst)
   sqlite3_stmt *stmt;
   const char *name;
   const char *key;
-  int left; // Number of bytes left in key
+  int	left; // Number of bytes left in key when converting it to bytes
   int	i;
   int	cols;
 
@@ -71,19 +71,25 @@ int	database_getuser(const char *login, t_dbuser *dst)
       fprintf(stderr, "sqlite3_prepare: %s\n", sqlite3_errmsg(dbhandler));
       return (1);
     }
-  cols = sqlite3_column_count(stmt);
-  if (sqlite3_step(stmt) != SQLITE_ROW) // Nothing found in db
+
+  // Nothing found in db
+  if (sqlite3_step(stmt) != SQLITE_ROW)
     {
       sqlite3_finalize(stmt);
       return (1);
     }
+
+  cols = sqlite3_column_count(stmt);
   for (i = 0 ; i < cols ; ++i)
     {
       name = (const char *)sqlite3_column_name(stmt, i);
+      // ID in the database
       if (!strcmp(name, "id"))
 	dst->id = atoi((const char *)(sqlite3_column_text(stmt, i)));
+      // AES decipher key
       else if (!strcmp(name, "key"))
 	{
+	  // Convert from string to bytes
 	  key = (const char *)(sqlite3_column_text(stmt, i));
 	  for (left = 0 ; left < 32 ; ++left)
 	    {
@@ -108,6 +114,7 @@ int	database_new_user(const char *login, const char *unam, const char *key)
   char	*req;
   int	ret;
 
+  // Prepare request
   ret = asprintf(&req, "INSERT INTO `auth` (`login`, `rg_username`, `rg_time`,"
 		       " `key`) VALUES ('%s', '%s', CURRENT_TIMESTAMP, '%s');",
 		 login, unam, key);
@@ -116,7 +123,11 @@ int	database_new_user(const char *login, const char *unam, const char *key)
       perror("asprintf");
       return (1);
     }
+
+  // Execute it
   ret = sqlite3_exec(dbhandler, req, &callback_nothing, NULL, &err);
+
+  // Cleanup
   free(req);
   if (ret != SQLITE_OK)
     {

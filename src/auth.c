@@ -28,6 +28,8 @@ struct s_curlnfo
 };
 
 // CURL callback, where we store data into the buffer
+// If we run out of space, we don't write in the buffer
+// This should not happen since we need to read just a few characters
 static size_t curl_callback(char *ptr, size_t size, size_t nmemb, void *dat)
 {
   t_curlinfo *info;
@@ -42,7 +44,6 @@ static size_t curl_callback(char *ptr, size_t size, size_t nmemb, void *dat)
 }
 
 // Read from socket, store into buffer and update buflen
-// Marks thread as finished upon error
 int	perform_read(t_threadinfo *me)
 {
   int ret;
@@ -61,6 +62,7 @@ int	perform_read(t_threadinfo *me)
 
 // Keep on reading as long as we don't have the full login
 // When found, copy to me->tmp
+// Check the login is valid, and that there is no forbidden characters
 static int read_login(t_threadinfo *me)
 {
   size_t size;
@@ -96,7 +98,8 @@ static int read_ciphered_pass(t_threadinfo *me)
   return (0);
 }
 
-// Ensure that the login/password combination is correct
+// Ensure that the login/password combination is correct by checking on the
+// intranet
 static int match_login_pass(char *login, char *pass)
 {
   t_curlinfo cinfo;
@@ -105,12 +108,15 @@ static int match_login_pass(char *login, char *pass)
   char	*postargs;
   int	ret;
 
+  // Allocate post arguments
   ret = asprintf(&postargs, "format=json&login=%s&password=%s", login, pass);
   if (ret == -1)
     {
       perror("asprintf");
       return (1);
     }
+
+  // Prepare cURL
   handler = curl_easy_init();
   if (!handler)
     {
@@ -119,6 +125,8 @@ static int match_login_pass(char *login, char *pass)
       return (1);
     }
   cinfo.pos = 0;
+
+  // Set up cURL parameters and run
   curl_easy_setopt(handler, CURLOPT_URL, CONNECT_URL);
   curl_easy_setopt(handler, CURLOPT_POSTFIELDS, postargs);
   curl_easy_setopt(handler, CURLOPT_WRITEFUNCTION, &curl_callback);
@@ -126,6 +134,8 @@ static int match_login_pass(char *login, char *pass)
   res = curl_easy_perform(handler);
   curl_easy_cleanup(handler);
   free(postargs);
+
+  // Check we have the right response from the server
   if (res != CURLE_OK)
     {
       fprintf(stderr, "curl_easy_perform: %s\n", curl_easy_strerror(res));
@@ -137,19 +147,27 @@ static int match_login_pass(char *login, char *pass)
 }
 
 // Try to authenticate the user
+// Read login from the socket, get informations from database
+// Compute expanded key, read password and decipher it
+// Check on the intranet informations are correct
 int	authenticate(t_threadinfo *me)
 {
   char	pass[16];
   int	passlen;
 
+  // Read login
   if (read_login(me))
     return (1);
   strcpy(me->user.login, me->tmp);
+
+  // Get infos from database
   if (database_getuser(me->user.login, &me->user))
     {
       dprintf(me->socket, "You are not known from me.\n");
       return (1);
     }
+
+  // Compute expanded key, read ciphered pass, decipher pass
   key_expansion(me->user.key, me->exp_key);
   if (read_ciphered_pass(me))
     return (1);
@@ -157,10 +175,12 @@ int	authenticate(t_threadinfo *me)
   passlen = pass[0];
   if (passlen > 15)
     {
-      dprintf(me->socket, "Failed to match user and password: %d\n", passlen);
+      dprintf(me->socket, "Failed to match user and password\n");
       return (1);
     }
   memmove(pass, &pass[1], passlen);
+
+  // Check on the intranet
   pass[passlen] = '\0';
   if (match_login_pass(me->user.login, pass))
     {

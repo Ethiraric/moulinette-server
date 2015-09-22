@@ -23,9 +23,10 @@ static void check_threads(t_mouli *mouli)
 
   for (i = 0 ; i < mouli->nthreads ; ++i)
     {
+      // A thread that has finished has its finished field set non-zero
       if (mouli->threads[i]->finished)
 	{
-	  // If it fails, the thread has terminated (ESRCH)
+	  // If it fails, it means the thread has terminated (ESRCH)
 	  pthread_join(mouli->threads[i]->id, &ret);
 	  if (mouli->threads[i]->socket)
 	    close(mouli->threads[i]->socket);
@@ -73,39 +74,52 @@ static t_threadinfo *get_new_threadinfo(int socket)
   return (info);
 }
 
-// Accept a new client
+// Accept a new client, create a thread for him
 static int on_new_client(t_mouli *mouli)
 {
   t_threadinfo *info;
   int	clsock;
 
+  // Check if we can add a new thread in our tab and reallocate if necessary
   if (mouli->nthreads == mouli->allocd &&
       realloc_threadinfos(mouli, mouli->allocd + 16))
     return (1);
+
+  // Accept connection
   clsock = accept(mouli->socket, NULL, NULL);
   if (clsock == -1)
     {
       perror("accept");
       return (1);
     }
+
+  // Get thread informations
   info = get_new_threadinfo(clsock);
   if (!info)
     {
       close(clsock);
       return (1);
     }
+
+  // We're all setup to launch the thread
   info->mouli = mouli;
   mouli->threads[mouli->nthreads] = info;
   ++mouli->nthreads;
+
+  // In case of an error, mark the thread as finished so it will be destroyed
+  // later
   if (pthread_create(&info->id, NULL, &handle_client, info))
     {
       perror("pthread_create");
+      dprintf(clsock, "Failed to create thread\n");
+      info->finished = 1;
       return (1);
     }
   return (0);
 }
 
 // Main loop of the mouli
+// There is one thread per student connected
 int	mouli_run(t_mouli *mouli)
 {
   static char *useless[128];
@@ -117,6 +131,10 @@ int	mouli_run(t_mouli *mouli)
   FD_SET(0, &rfds);
   t.tv_sec = 0;
   t.tv_usec = 100000;
+
+  // Wait for clients to connect, stop every 0.1 second to check if some
+  // thread datas need to be destroyed, and sockets closed
+  // Watch standard output to stop on a ^D (Control-D)
   while (select(mouli->socket + 1, &rfds, NULL, NULL, &t) >= 0)
     {
       if (FD_ISSET(0, &rfds) && !read(0, useless, 128))

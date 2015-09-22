@@ -15,7 +15,8 @@
 #include <unistd.h>
 #include "mouli.h"
 
-// Call system, with a printf-formated string
+// Call popen, with a printf-formated string (with mode "r")
+// It pipe()s and fork()s so we can read the subprocess standard output
 #ifdef __GNUC__
 __attribute__ ((format (printf, 1, 2)))
 #endif
@@ -38,23 +39,25 @@ static FILE *my_popen(const char *fmt, ...)
   ifs = popen(command, "r");
   free(command);
   if (!ifs)
-    {
-      perror("popen");
-      return (NULL);
-    }
+    perror("popen");
   return (ifs);
 }
 
-// Read the repository
+// Read the repository name and store it in me->buffer
+// Checks it does not contain character which may not be safely passed to
+// system()
 static int read_repo(t_threadinfo *me)
 {
   size_t size;
   void	*pos;
 
+  // Read while there is no '\n'
   while (!(pos = memchr(me->buffer, '\n', me->buflen)) &&
 	 me->buflen < 256)
     if (perform_read(me))
       return (1);
+
+  // Change '\n' by a '\0' so we can consider the repository as a string
   size = (char *)(pos) - me->buffer;
   if (pos)
     *(char *)(pos) = '\0';
@@ -76,14 +79,28 @@ static int update_repo(t_threadinfo *me)
   FILE	*ifs;
   int	status;
 
+  // Get repository name
   if (read_repo(me))
     return (1);
+
+  // Create subprocess
   ifs = my_popen("./clone.sh \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" 2> /dev/null",
 		 me->user.login, me->buffer, me->mouli->clone_subfolder,
 		 me->mouli->tests_subfolder, me->mouli->clone_login);
+  if (!ifs)
+    {
+      dprintf(me->socket, "Failed to clone (severe)\n");
+      return (1);
+    }
+
+  // Get output in case the clone is not successful
   pos = 0;
   while ((status = fread(&outbuffer[pos], 1, THREAD_BUFLEN - pos - 1, ifs)))
     pos += status;
+
+  // Close the subprocess pipe
+  // The clone script always outputs something (whether it can clone or not)
+  // In case it doesn't, there is some serious problem
   status = pclose(ifs);
   if (status == -1 || !pos)
     {
@@ -92,6 +109,8 @@ static int update_repo(t_threadinfo *me)
       dprintf(me->socket, "Failed to clone (severe)\n");
       return (1);
     }
+
+  // Get subprocess exit status, and send error to the student, if any
   status = WEXITSTATUS(status);
   if (status)
     {
@@ -132,6 +151,7 @@ static int run_tests(t_threadinfo *me)
   char	outbuffer[THREAD_BUFLEN];
   int	hasread;
 
+  // Open pipe with executable
   ifs = my_popen("(cd ./%s/%s/%s/.tests && ./%s)", me->mouli->clone_subfolder,
 		 me->user.login, me->buffer, me->mouli->tests_filename);
   if (!ifs)
@@ -139,6 +159,8 @@ static int run_tests(t_threadinfo *me)
       dprintf(me->socket, "Failed to exec tests (severe)\n");
       return (1);
     }
+
+  // Read output until the end, and send it to the student
   hasread = 0;
   while ((status = fread(outbuffer, 1, 1, ifs)))
     {
@@ -149,6 +171,8 @@ static int run_tests(t_threadinfo *me)
 	}
       hasread = 1;
     }
+
+  // Close pipe
   status = pclose(ifs);
   if (status == -1 || !hasread)
     {
@@ -167,19 +191,30 @@ static int readcmd(t_threadinfo *me)
   size_t left;
   int	status;
 
+  // Loop until 8 bytes are read
   left = 8;
   while (left && (status = read(me->socket, &me->buffer[8 - left], left)) > 0)
     left -= status;
-  if (status <= 0)
+
+  // Display error if read fails, just return if the client disconnected
+  if (status < 0)
     {
       perror("read");
       return (1);
     }
+  if (!status)
+    return (1);
+
   me->buffer[8] = '\0';
   return (0);
 }
 
 // Thread function handling a client
+// Read informations about what command it wants to run (mouli / register)
+// mouli -> authenticate, upadte repo, run test, send output
+// register -> get login, add entry in db, send mail
+// REMEMBER to set me->finished to something evaluating to true, so the main
+// thread can free resources
 void	*handle_client(void *arg)
 {
   t_threadinfo *me; // It's informations about me, myself
@@ -187,17 +222,23 @@ void	*handle_client(void *arg)
 
   me = (t_threadinfo *)(arg);
   me->buffer = buffer;
+
+  // Read command
   if (readcmd(me))
     {
       me->finished = 1;
       return (NULL);
     }
+
+  // If the user wants to register
   if (!memcmp(me->buffer, "register", 8))
     {
       client_register(me);
       me->finished = 1;
       return (NULL);
     }
+
+  // If the user wants a moulinette
   if (!memcmp(me->buffer, "mouli\x00\x00\x00", 8))
     if (authenticate(me) || update_repo(me) || run_tests(me))
       {

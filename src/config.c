@@ -14,8 +14,21 @@
 #include "config.h"
 
 // The configuration file should contain at least the following entries:
-// host: the host to connect to
-// port: the port to connect to
+// clone_subfolder: the folder in which to clone the repositories. They will
+//    be cloned to <subfolder>/<login>/<repository>
+// clone_login:     the login to git clone with
+//    (git clone <login>@git.epitech.eu)
+// tests_subfolder: the folder where all the tests are. Tests must have the
+//    following name: <test folder>/<repository>
+// tests_filename:  the file which will launch the tests. It will be piped so
+//    the moulinette can get its output (stdout ONLY). It must be executable
+//    (no interpreter will be used by default)
+// mail_sendaddr:   the mail the moulinette will use. It does not need to be
+//    a valid address (sendmail doesn't check)
+// mail_sendername: the name the mail will be sent with
+// ALL fields are MANDATORY
+// A check is performed so there is no character in the values (double quotes,
+// spaces ...) which may be a security risk when using system() or sqlite
 
 // Reallocates cfg->entries so it can hold newsize entries
 static int realloc_config_entries(t_config *cfg, size_t newsize)
@@ -103,6 +116,7 @@ t_config *loadconfig(const char *name)
   return (ret);
 }
 
+// Deallocates all resources allocated for the configuration
 void	deleteconfig(t_config *cfg)
 {
   size_t i;

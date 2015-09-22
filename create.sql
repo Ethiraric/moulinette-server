@@ -15,8 +15,3 @@ CREATE TABLE log
 CREATE TABLE repositories
 (`id` INTEGER PRIMARY KEY,
  `repo` VARCHAR(32));
-
-CREATE TABLE mark
-(`id` INTEGER PRIMRAY KEY,
- `auth_id` INTEGER,
- `subject_id` INTEGER);

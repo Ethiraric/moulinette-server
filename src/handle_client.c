@@ -79,8 +79,8 @@ static int update_repo(t_threadinfo *me)
   if (read_repo(me))
     return (1);
   ifs = my_popen("./clone.sh \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" 2> /dev/null",
-		 me->user.login, me->buffer, CLONE_SUBFOLDER, TESTS_SUBFOLDER,
-		 CLONE_LOGIN);
+		 me->user.login, me->buffer, me->mouli->clone_subfolder,
+		 me->mouli->tests_subfolder, me->mouli->clone_login);
   pos = 0;
   while ((status = fread(&outbuffer[pos], 1, THREAD_BUFLEN - pos - 1, ifs)))
     pos += status;
@@ -132,8 +132,8 @@ static int run_tests(t_threadinfo *me)
   char	outbuffer[THREAD_BUFLEN];
   int	hasread;
 
-  ifs = my_popen("(cd ./%s/%s/%s/.tests && ./%s)", CLONE_SUBFOLDER,
-		 me->user.login, me->buffer, TESTS_FILENMAME);
+  ifs = my_popen("(cd ./%s/%s/%s/.tests && ./%s)", me->mouli->clone_subfolder,
+		 me->user.login, me->buffer, me->mouli->tests_filename);
   if (!ifs)
     {
       dprintf(me->socket, "Failed to exec tests (severe)\n");
@@ -160,6 +160,25 @@ static int run_tests(t_threadinfo *me)
   return (0);
 }
 
+// The first 8 bytes are the command the user wants to execute
+// "register" or "mouli\x00\x00\x00"
+static int readcmd(t_threadinfo *me)
+{
+  size_t left;
+  int	status;
+
+  left = 8;
+  while (left && (status = read(me->socket, &me->buffer[8 - left], left)) > 0)
+    left -= status;
+  if (status <= 0)
+    {
+      perror("read");
+      return (1);
+    }
+  me->buffer[8] = '\0';
+  return (0);
+}
+
 // Thread function handling a client
 void	*handle_client(void *arg)
 {
@@ -168,12 +187,23 @@ void	*handle_client(void *arg)
 
   me = (t_threadinfo *)(arg);
   me->buffer = buffer;
-  // Stop at the first function returning an error
-  if (authenticate(me) || update_repo(me) || run_tests(me))
+  if (readcmd(me))
     {
       me->finished = 1;
       return (NULL);
     }
+  if (!memcmp(me->buffer, "register", 8))
+    {
+      client_register(me);
+      me->finished = 1;
+      return (NULL);
+    }
+  if (!memcmp(me->buffer, "mouli\x00\x00\x00", 8))
+    if (authenticate(me) || update_repo(me) || run_tests(me))
+      {
+	me->finished = 1;
+	return (NULL);
+      }
   me->finished = 1;
   return (NULL);
 }

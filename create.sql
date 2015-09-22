@@ -1,6 +1,8 @@
 CREATE TABLE auth
 (`id` INTEGER PRIMARY KEY,
  `login` VARCHAR(8),
+ `rg_username` VARCHAR(32),
+ `rg_time` TIMESTAMP,
  `key` VARCHAR(32));
 
 CREATE TABLE log

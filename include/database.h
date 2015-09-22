@@ -26,5 +26,7 @@ int	database_init(const char *filename);
 const char *database_geterror();
 int	database_close();
 int	database_getuser(const char *login, t_dbuser *dst);
+int	database_new_user(const char *login, const char *unam,
+			  const char *key);
 
 #endif /* !DATABASE_H_ */

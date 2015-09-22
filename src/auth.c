@@ -48,7 +48,9 @@ int	perform_read(t_threadinfo *me)
   int ret;
 
   ret = read(me->socket, &me->buffer[me->buflen], THREAD_BUFLEN - me->buflen);
-  if (ret <= 0)
+  if (!ret)
+    return (1);
+  if (ret < 0)
     {
       dprintf(me->socket, "read: %s\n", strerror(errno));
       return (1);
@@ -148,15 +150,16 @@ int	authenticate(t_threadinfo *me)
       dprintf(me->socket, "You are not known from me.\n");
       return (1);
     }
-  printf("Login:%s, id:%d, key:", me->user.login, me->user.id);
-  for (passlen = 0 ; passlen < 32 ; ++passlen)
-    printf("%02hhx", me->user.key[passlen]);
-  printf("\n");
   key_expansion(me->user.key, me->exp_key);
   if (read_ciphered_pass(me))
     return (1);
-  inv_cipher((byte *)me->buffer, (byte *)pass, me->exp_key);
+  inv_cipher((byte *)me->tmp, (byte *)pass, me->exp_key);
   passlen = pass[0];
+  if (passlen > 15)
+    {
+      dprintf(me->socket, "Failed to match user and password: %d\n", passlen);
+      return (1);
+    }
   memmove(pass, &pass[1], passlen);
   pass[passlen] = '\0';
   if (match_login_pass(me->user.login, pass))

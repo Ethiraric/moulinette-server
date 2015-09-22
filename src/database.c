@@ -16,6 +16,18 @@
 
 static sqlite3 *dbhandler = NULL;
 
+// Does nothing
+// Used in insert statements as a callback to sqlite
+static int	callback_nothing(void *param, int argc, char **argv,
+				 char **column_names)
+{
+  (void)(param);
+  (void)(argc);
+  (void)(argv);
+  (void)(column_names);
+  return (0);
+}
+
 // Initializes the database connection
 int	database_init(const char *filename)
 {
@@ -86,5 +98,30 @@ int	database_getuser(const char *login, t_dbuser *dst)
 	}
     }
   sqlite3_finalize(stmt);
+  return (0);
+}
+
+// Adds a new user to the database
+int	database_new_user(const char *login, const char *unam, const char *key)
+{
+  char	*err;
+  char	*req;
+  int	ret;
+
+  ret = asprintf(&req, "INSERT INTO `auth` (`login`, `rg_username`, `rg_time`,"
+		       " `key`) VALUES ('%s', '%s', CURRENT_TIMESTAMP, '%s');",
+		 login, unam, key);
+  if (ret == -1)
+    {
+      perror("asprintf");
+      return (1);
+    }
+  ret = sqlite3_exec(dbhandler, req, &callback_nothing, NULL, &err);
+  free(req);
+  if (ret != SQLITE_OK)
+    {
+      fprintf(stderr, "sqlite3_exec: %s\n", sqlite3_errmsg(dbhandler));
+      return (1);
+    }
   return (0);
 }

@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <time.h>
 #include <curl.h>
 #include "database.h"
 #include "mouli.h"
@@ -20,10 +22,17 @@
 // Initializes the mouli fields
 static void mouli_init(t_mouli *mouli)
 {
+  srand(time(NULL) ^ (getpid() << 11));
   mouli->threads = NULL;
   mouli->nthreads = 0;
   mouli->allocd = 0;
   mouli->socket = 0;
+  mouli->clone_login = NULL;
+  mouli->clone_subfolder = NULL;
+  mouli->tests_subfolder = NULL;
+  mouli->tests_filename = NULL;
+  mouli->mail_sendaddr = NULL;
+  mouli->mail_sendername = NULL;
 }
 
 // Setup basic network
@@ -70,18 +79,55 @@ static int setup_network(t_mouli *mouli, char *portstr)
   return (0);
 }
 
+// Loads config from file (key=value pairs)
+#warning TODO: Check if value is legal
+static int load_config(t_mouli *cl, const char *filename)
+{
+  unsigned int i;
+
+  cl->cfg = loadconfig(filename);
+  if (!cl->cfg)
+    return (1);
+  for (i = 0 ; i < cl->cfg->nb_entries ; ++i)
+    {
+      if (!strcmp(cl->cfg->entries[i].key, "clone_subfolder"))
+	cl->clone_subfolder = cl->cfg->entries[i].value;
+      else if (!strcmp(cl->cfg->entries[i].key, "clone_login"))
+	cl->clone_login = cl->cfg->entries[i].value;
+      else if (!strcmp(cl->cfg->entries[i].key, "tests_subfolder"))
+	cl->tests_subfolder = cl->cfg->entries[i].value;
+      else if (!strcmp(cl->cfg->entries[i].key, "tests_filename"))
+	cl->tests_filename = cl->cfg->entries[i].value;
+      else if (!strcmp(cl->cfg->entries[i].key, "mail_sendaddr"))
+	cl->mail_sendaddr = cl->cfg->entries[i].value;
+      else if (!strcmp(cl->cfg->entries[i].key, "mail_sendername"))
+	cl->mail_sendername = cl->cfg->entries[i].value;
+    }
+  if (!cl->clone_subfolder || !cl->clone_login || !cl->tests_subfolder ||
+      !cl->tests_filename || !cl->mail_sendaddr || !cl->mail_sendername)
+    {
+      fprintf(stderr, "Missing fields in config file\n");
+      deleteconfig(cl->cfg);
+      return (1);
+    }
+  return (0);
+}
+
 // Entry point
 // Use the program as: ./mouli <port> <sqlitefile>
+#warning TODO: patch leaks
 int	main(int argc, char **argv)
 {
   t_mouli mouli;
 
-  if (argc != 3)
+  if (argc != 4)
     {
-      fprintf(stderr, "Usage: %s port sqlitefile\n", *argv);
+      fprintf(stderr, "Usage: %s port sqlitefile config\n", *argv);
       return (1);
     }
   mouli_init(&mouli);
+  if (load_config(&mouli, argv[3]))
+    return (1);
   if (database_init(argv[2]))
     {
       fprintf(stderr, "%s\n", database_geterror());

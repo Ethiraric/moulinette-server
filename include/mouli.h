@@ -14,17 +14,16 @@
 # include <pthread.h>
 # include <stdint.h>
 # include "database.h"
+# include "config.h"
 
 // Default size for all buffers in a thread (at most 2 at a time may be in use)
 # define THREAD_BUFLEN	512
 
-// TODO: configuration file + must not contain spaces or "
-# define CLONE_LOGIN "sabour_f" // Login to use when cloning
-# define CLONE_SUBFOLDER "repositories" // Where to clone: subfolder/login/repo
-# define TESTS_SUBFOLDER "tests" // Where the tests sources are: subfolder/repo
-# define TESTS_FILENMAME "run_tests.py" // The file to execute to test
+# define MAIL_CONTENT "Subject:Moulinette\nHere is your key to access the" \
+  " moulinette: %s.\nDon't give it to anybody.\n(Do not reply)"
 
 // Thread information
+typedef struct s_mouli t_mouli;
 typedef struct s_threadinfo t_threadinfo;
 struct s_threadinfo
 {
@@ -36,16 +35,23 @@ struct s_threadinfo
   char	tmp[128];     // Temporary buffer, used by some thread functions
   byte	exp_key[240]; // Expanded AES key (240 bytes)
   t_dbuser user;      // Contains all user's data
+  t_mouli *mouli;
 };
 
 // Main moulinette structure
-typedef struct s_mouli t_mouli;
 struct	s_mouli
 {
   t_threadinfo **threads;
   size_t nthreads;
   size_t allocd;
   int	socket;
+  t_config *cfg;
+  char	*clone_login;
+  char	*clone_subfolder;
+  char	*tests_subfolder;
+  char	*tests_filename;
+  char	*mail_sendaddr;
+  char	*mail_sendername;
 };
 
 // AES utilities
@@ -56,6 +62,7 @@ void	inv_cipher(uint8_t *in, uint8_t *out, uint8_t *w);
 int	mouli_run(t_mouli *mouli);
 void	*handle_client(void *arg);
 int	authenticate(t_threadinfo *me);
+int	client_register(t_threadinfo *me);
 
 // Helper functions
 int	perform_read(t_threadinfo *me);

@@ -94,6 +94,7 @@ static int on_new_client(t_mouli *mouli)
       close(clsock);
       return (1);
     }
+  info->mouli = mouli;
   mouli->threads[mouli->nthreads] = info;
   ++mouli->nthreads;
   if (pthread_create(&info->id, NULL, &handle_client, info))

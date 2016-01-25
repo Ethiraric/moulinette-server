@@ -100,56 +100,6 @@ static int read_repo(t_threadinfo *me)
   return (0);
 }
 
-// Call git clone/pull for the user's repository
-static int update_repo(t_threadinfo *me)
-{
-  size_t pos;
-  char	outbuffer[THREAD_BUFLEN];
-  FILE	*ifs;
-  int	status;
-
-  // Get repository name
-  if (read_repo(me))
-    return (1);
-
-  // Create subprocess
-  ifs = my_popen("./clone.sh \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" 2> /dev/null",
-		 me->user.login, me->buffer, me->mouli->clone_subfolder,
-		 me->mouli->tests_subfolder, me->mouli->clone_login);
-  if (!ifs)
-    {
-      dprintf(me->socket, "Failed to clone (severe)\n");
-      return (1);
-    }
-
-  // Get output in case the clone is not successful
-  pos = 0;
-  while ((status = fread(&outbuffer[pos], 1, THREAD_BUFLEN - pos - 1, ifs)))
-    pos += status;
-
-  // Close the subprocess pipe
-  // The clone script always outputs something (whether it can clone or not)
-  // In case it doesn't, there is some serious problem
-  status = pclose(ifs);
-  if (status == -1 || !pos)
-    {
-      if (status == -1)
-	perror("pclose");
-      dprintf(me->socket, "Failed to clone (severe)\n");
-      return (1);
-    }
-
-  // Get subprocess exit status, and send error to the student, if any
-  status = WEXITSTATUS(status);
-  if (status)
-    {
-      outbuffer[pos] = '\0';
-      dprintf(me->socket, "%s", outbuffer);
-      return (1);
-    }
-  return (0);
-}
-
 // Write loop. Ensures len bytes are written to fd
 static int write_loop(int fd, char *buffer, size_t len)
 {
@@ -167,6 +117,49 @@ static int write_loop(int fd, char *buffer, size_t len)
       len -= ret;
     }
   return (len);
+}
+
+// Call git clone/pull for the user's repository
+static int update_repo(t_threadinfo *me)
+{
+  char	outbuffer[THREAD_BUFLEN];
+  FILE	*ifs;
+  int	status;
+
+  // Get repository name
+  if (read_repo(me))
+    return (1);
+
+  // Create subprocess
+  ifs = my_popen("./clone.sh \"%s\" \"%s\" \"%s\" \"%s\" \"%s\"",
+		 me->user.login, me->buffer, me->mouli->clone_subfolder,
+		 me->mouli->tests_subfolder, me->mouli->clone_login);
+  if (!ifs)
+    {
+      dprintf(me->socket, "Internal error\n");
+      return (1);
+    }
+
+  // Get output in case the clone is not successful
+  while ((status = fread(outbuffer, 1, THREAD_BUFLEN - 1, ifs)))
+    if (write_loop(me->socket, outbuffer, status))
+      return (1);
+
+  // Close the subprocess pipe
+  status = pclose(ifs);
+  if (status == -1)
+    {
+      if (status == -1)
+	perror("pclose");
+      dprintf(me->socket, "Internal error\n");
+      return (1);
+    }
+
+  // Get subprocess exit status, and send error to the student, if any
+  status = WEXITSTATUS(status);
+  if (status)
+    return (1);
+  return (0);
 }
 
 // Run the tests

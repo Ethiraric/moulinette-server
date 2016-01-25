@@ -18,7 +18,7 @@ typedef struct s_dbuser t_dbuser;
 struct s_dbuser
 {
   unsigned int id;
-  char	login[8];
+  char	login[9];
   byte	key[32];
 };
 

@@ -158,7 +158,8 @@ int	authenticate(t_threadinfo *me)
   // Read login
   if (read_login(me))
     return (1);
-  strcpy(me->user.login, me->tmp);
+  memcpy(me->user.login, me->tmp, 8);
+  me->user.login[8] = '\0';
 
   // Get infos from database
   if (database_getuser(me->user.login, &me->user))

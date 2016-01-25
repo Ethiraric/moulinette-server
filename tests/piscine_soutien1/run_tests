@@ -1,0 +1,39 @@
+#!/bin/bash
+
+runthis(){
+    echo "$@"
+    eval "$@"
+}
+
+runthis "gcc -I. -W -Wall -Werror -o mouli_ex1 main_strcpy.c mouli_strcpy.c 2>&1"
+
+
+if [[ $? -ne 0 ]]
+then
+    echo "Mark: 0/20"
+    exit 0
+fi
+runthis "gcc -I. -W -Wall -Werror -o user_ex1  main_strcpy.c ../ex1/my_strcpy.c 2>&1"
+
+if [[ $? -ne 0 ]]
+then
+    echo "Mark: 0/20"
+    exit 0
+fi
+
+runthis "./mouli_ex1 > mouli"
+runthis "./user_ex1 > user"
+
+runthis "diff mouli user"
+
+if [[ $? -ne 0 ]]
+then
+    echo "Mark: 0/20"
+    exit 0
+fi
+
+echo "Test passed !"
+echo
+echo "Mark: 20/20"
+
+exit 0

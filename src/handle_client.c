@@ -174,6 +174,7 @@ static int run_tests(t_threadinfo *me)
   char	*markpos;
   int	status;
   int	hasread;
+  int	mark;
 
   // Open pipe with executable
   ifs = my_popen("(cd ./%s/%s/%s/.tests && ./%s)", me->mouli->clone_subfolder,
@@ -207,14 +208,14 @@ static int run_tests(t_threadinfo *me)
 
   markpos = memmem(resbuffer.buffer, resbuffer.buflen, "Mark:", 5);
   if (markpos)
-    hasread = atoi(markpos + 5);
+    mark = atoi(markpos + 5);
   else
     {
       printf("Failed to find markpos\n");
-      markpos = 0;
+      mark = 0;
     }
   free(resbuffer.buffer);
-  database_log(&me->user, me->buffer, hasread);
+  database_log(&me->user, me->buffer, mark);
 
   // Close pipe
   status = pclose(ifs);
